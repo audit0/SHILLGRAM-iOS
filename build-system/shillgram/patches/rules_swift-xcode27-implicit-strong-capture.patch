@@ -1,0 +1,15 @@
+diff --git a/swift/toolchains/config/compile_config.bzl b/swift/toolchains/config/compile_config.bzl
+index a079cd7..8e5a690 100644
+--- a/swift/toolchains/config/compile_config.bzl
++++ b/swift/toolchains/config/compile_config.bzl
+@@ -2367,6 +2367,10 @@ def _fail_if_flag_is_banned(copt):
+     Returns:
+         The original flag, if the function didn't fail.
+     """
++    # SHILLGRAM: Swift 6.3 (Xcode 27) added the ImplicitStrongCapture diagnostic; keep it a
++    # warning in modules that build with -warnings-as-errors.
++    if copt == "-warnings-as-errors":
++        return [copt, "-Wwarning", "ImplicitStrongCapture"]
+     reason = _BANNED_SWIFTCOPTS.get(copt)
+     if reason:
+         fail("The Swift compiler flag '{}' may not be used. {}".format(
