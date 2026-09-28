@@ -46,6 +46,7 @@ import NavigationBarImpl
 import ContextUI
 import ContextControllerImpl
 import ProxyServerPreviewScreen
+import ShillVpn
 
 #if canImport(AppCenter)
 import AppCenter
@@ -240,6 +241,8 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     private let contextDisposable = MetaDisposable()
     
     private var authContextValue: UnauthorizedApplicationContext?
+    // SHILLGRAM: the SHILLVPN screen comes first once per launch when Telegram has no way to connect.
+    private var shillVpnFirstScreenChecked = false
     private let authContext = Promise<UnauthorizedApplicationContext?>()
     private let authContextDisposable = MetaDisposable()
     
@@ -641,7 +644,15 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             isICloudEnabled: buildConfig.isICloudEnabled
         )
         
-        guard let appGroupUrl = maybeAppGroupUrl else {
+        // SHILLGRAM: sideloaded with a free Apple ID there is no app group container;
+        // keep the data in the app's own Application Support instead of stopping with "Error 2".
+        var fallbackAppGroupUrl: URL?
+        if maybeAppGroupUrl == nil, let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            let url = support.appendingPathComponent("shillgram-group", isDirectory: true)
+            try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            fallbackAppGroupUrl = url
+        }
+        guard let appGroupUrl = maybeAppGroupUrl ?? fallbackAppGroupUrl else {
             self.mainWindow?.presentNative(UIAlertController(title: nil, message: "Error 2", preferredStyle: .alert))
             return true
         }
@@ -1059,6 +1070,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         pushRegistry.delegate = self
 
         self.accountManagerState = extractAccountManagerState(records: accountManager._internalAccountRecordsSync())
+        // SHILLGRAM: SHILLVPN starts with the account manager, before any network: Telegram's
+        // proxy is pointed at the in-app core (or a stale local proxy is dropped).
+        ShillVpnTelegram.shared.setup(accountManager: accountManager)
         let _ = (accountManager.accountRecords()
         |> deliverOnMainQueue).start(next: { view in
             self.accountManagerState = extractAccountManagerState(records: view)
@@ -1191,6 +1205,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             })
             let sharedApplicationContext = SharedApplicationContext(sharedContext: sharedContext, notificationManager: notificationManager, wakeupManager: wakeupManager)
             sharedApplicationContext.sharedContext.mediaManager.overlayMediaManager.attachOverlayMediaController(sharedApplicationContext.overlayMediaController)
+            ShillVpnTelegram.installReminder(sharedContext: sharedContext, currentContext: { [weak self] in
+                return self?.contextValue?.context
+            })
             
             return accountManager.transaction { transaction -> (SharedApplicationContext, LoggingSettings) in
                 return (sharedApplicationContext, transaction.getSharedData(SharedDataKeys.loggingSettings)?.get(LoggingSettings.self) ?? LoggingSettings.defaultSettings)
@@ -1330,6 +1347,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 contextValue.context.account.shouldKeepBackgroundDownloadConnections.set(.single(false))
             }
             self.contextValue = context
+            ShillVpn.shared.hasTelegramAccount = context != nil
+            if let context = context {
+                ShillVpnTelegram.shared.watchConnection(context.context.account.network)
+            }
             if let context = context {
                 setupLegacyComponents(context: context.context)
                 let isReady = context.isReady.get()
@@ -1364,6 +1385,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                     self.registerForNotifications(context: context.context, authorize: authorizeNotifications)
                     
                     self.resetIntentsIfNeeded(context: context.context)
+                    self.presentShillVpnFirstScreenIfNeeded(sharedContext: context.context.sharedContext, context: context.context)
                 }))
             } else {
                 self.mainWindow.viewController = nil
@@ -1382,6 +1404,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             }
             
             Logger.shared.log("App \(self.episodeId)", "received auth context \(String(describing: context)) account \(String(describing: context?.account.id)) network \(String(describing: network))")
+            ShillVpnTelegram.shared.setUnauthorizedNetwork(network)
+            if let network = network {
+                ShillVpnTelegram.shared.watchConnection(network)
+            }
             
             if let authContextValue = self.authContextValue {
                 authContextValue.account.shouldBeServiceTaskMaster.set(.single(.never))
@@ -1428,6 +1454,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 |> deliverOnMainQueue).start(next: { _ in
                     progressDisposable.dispose()
                     self.mainWindow.present(context.rootController, on: .root)
+                    self.presentShillVpnFirstScreenIfNeeded(sharedContext: context.sharedContext, context: nil)
                 }))
             } else {
                 authContextReadyDisposable.set(nil)
@@ -2002,7 +2029,27 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         })
     }
 
+    // SHILLGRAM: "the first thing a user sees is connecting SHILLVPN, or they cannot reach
+    // Telegram to log in". Once per launch, over the login (or the chat list) when there is
+    // no subscription, its time is over, or it is turned off before any login.
+    private func presentShillVpnFirstScreenIfNeeded(sharedContext: SharedAccountContext, context: AccountContext?) {
+        if self.shillVpnFirstScreenChecked {
+            return
+        }
+        self.shillVpnFirstScreenChecked = true
+        let vpn = ShillVpn.shared
+        guard vpn.needsConnection || (context == nil && !vpn.isEnabled) else {
+            ShillVpn.debugLog("first screen not needed")
+            return
+        }
+        Queue.mainQueue().after(0.3, {
+            ShillVpnTelegram.present(mode: .firstScreen, sharedContext: sharedContext, context: context)
+            ShillVpn.debugLog("first screen shown")
+        })
+    }
+
     func applicationDidBecomeActive(_ application: UIApplication) {
+        ShillVpn.shared.applicationDidBecomeActive()
         self.isInForegroundValue = true
         self.isInForegroundPromise.set(true)
         self.isActiveValue = true

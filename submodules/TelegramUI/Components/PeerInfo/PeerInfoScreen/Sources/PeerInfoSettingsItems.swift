@@ -12,6 +12,7 @@ import ItemListPeerItem
 import DeviceAccess
 import TelegramStringFormatting
 import PeerNameColorItem
+import ShillVpn
 
 enum SettingsSection: Int, CaseIterable {
     case edit
@@ -168,6 +169,11 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
             }))
         }
     }
+    
+    // SHILLGRAM: the built-in SHILLVPN, first in the connection section: "SHILLVPN · 3 дня".
+    items[.proxy]!.insert(PeerInfoScreenDisclosureItem(id: 1, text: ShillVpn.shared.menuText(), icon: PresentationResourcesSettings.proxy, action: {
+        interaction.openSettings(.shillVpn)
+    }), at: 0)
     
     var appIndex = 1000
     if let settings = data.globalSettings {

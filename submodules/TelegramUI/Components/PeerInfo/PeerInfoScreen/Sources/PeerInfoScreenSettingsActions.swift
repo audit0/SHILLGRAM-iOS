@@ -15,6 +15,7 @@ import TelegramPresentationData
 import PresentationDataUtils
 import PasswordSetupUI
 import InstantPageCache
+import ShillVpn
 
 extension PeerInfoScreenNode {
     func openSettings(section: PeerInfoSettingsSection) {
@@ -294,6 +295,8 @@ extension PeerInfoScreenNode {
             if let tonContext = self.controller?.tonContext {
                 push(self.context.sharedContext.makeStarsTransactionsScreen(context: self.context, starsContext: tonContext))
             }
+        case .shillVpn:
+            ShillVpnTelegram.present(mode: .settings, sharedContext: self.context.sharedContext, context: self.context)
         }
     }
 
