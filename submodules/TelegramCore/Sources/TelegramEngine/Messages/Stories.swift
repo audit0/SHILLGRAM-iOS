@@ -2086,6 +2086,11 @@ func _internal_markStoryAsSeen(account: Account, peerId: PeerId, id: Int32, asPi
             }
             #endif
             
+            // SHILLGRAM: ghost: a pinned story is not counted as viewed.
+            if ShillGhost.noStories {
+                return .complete()
+            }
+            
             return account.network.request(Api.functions.stories.incrementStoryViews(peer: inputPeer, id: [id]))
             |> `catch` { _ -> Signal<Api.Bool, NoError> in
                 return .single(.boolFalse)

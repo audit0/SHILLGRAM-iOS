@@ -147,6 +147,14 @@ private func requestActivity(postbox: Postbox, network: Network, accountPeerId: 
             if peerId == accountPeerId {
                 return .complete()
             }
+            // SHILLGRAM: ghost: no "typing", upload progress, sticker choosing or emoji-interaction actions
+            // (and no cancel for them); "speaking" in a voice chat still goes out.
+            if ShillGhost.noTyping {
+                if let activity = activity, case .speakingInGroupCall = activity {
+                } else {
+                    return .complete()
+                }
+            }
             if let channel = peer as? TelegramChannel, case .broadcast = channel.info {
                 if let activity = activity {
                     switch activity {

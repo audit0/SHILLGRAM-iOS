@@ -6,6 +6,10 @@ import MtProtoKit
 
 
 func _internal_markAllChatsAsRead(postbox: Postbox, network: Network, stateManager: AccountStateManager) -> Signal<Void, NoError> {
+    // SHILLGRAM: ghost: chats are read on this device only (the local part goes through the read-state operations).
+    if ShillGhost.noRead {
+        return .complete()
+    }
     return network.request(Api.functions.messages.getDialogUnreadMarks(flags: 0, parentPeer: nil))
     |> map(Optional.init)
     |> `catch` { _ -> Signal<[Api.DialogPeer]?, NoError> in

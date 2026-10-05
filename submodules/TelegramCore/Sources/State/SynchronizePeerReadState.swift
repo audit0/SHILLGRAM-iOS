@@ -186,6 +186,12 @@ private func validatePeerReadState(network: Network, postbox: Postbox, stateMana
                             if case let .idBased(updatedMaxIncomingReadId, _, _, updatedCount, updatedMarkedUnread) = readState {
                                 if updatedCount != 0 || updatedMarkedUnread {
                                     if localMaxIncomingReadId > updatedMaxIncomingReadId {
+                                        // SHILLGRAM: ghost: the server is behind on purpose (now or before ghost mode was turned off);
+                                        // keep the local read state instead of retrying forever.
+                                        if ShillGhost.serverMayLagReads {
+                                            transaction.confirmSynchronizedIncomingReadState(peerId)
+                                            return nil
+                                        }
                                         return .retry
                                     }
                                 }
@@ -234,6 +240,11 @@ private func pushPeerReadState(network: Network, postbox: Postbox, stateManager:
             case .idBased:
                 return .single(readState)
             case let .indexBased(maxIncomingReadIndex, _, _, _):
+                // SHILLGRAM: ghost: read on this device only, the operation completes without the request.
+                if ShillGhost.noRead {
+                    ShillGhost.noteReadHidden()
+                    return .single(readState)
+                }
                 return network.request(Api.functions.messages.readEncryptedHistory(peer: inputPeer, maxDate: maxIncomingReadIndex.timestamp))
                     |> mapError { _ in
                         return PeerReadStateValidationError.retry
@@ -257,6 +268,11 @@ private func pushPeerReadState(network: Network, postbox: Postbox, stateManager:
                     }
                     |> mapToSignal { _ -> Signal<Void, NoError> in
                         return .complete()
+                    }
+                    // SHILLGRAM: ghost: read on this device only (the signal is lazy, the request is never sent); "mark as unread" still syncs.
+                    if ShillGhost.noRead {
+                        ShillGhost.noteReadHidden()
+                        pushSignal = .complete()
                     }
                     if markedUnread {
                         pushSignal = pushSignal
@@ -295,6 +311,11 @@ private func pushPeerReadState(network: Network, postbox: Postbox, stateManager:
                             }
                         }
                         return .complete()
+                    }
+                    // SHILLGRAM: ghost: read on this device only (the signal is lazy, the request is never sent); "mark as unread" still syncs.
+                    if ShillGhost.noRead {
+                        ShillGhost.noteReadHidden()
+                        pushSignal = .complete()
                     }
 
                     if markedUnread {

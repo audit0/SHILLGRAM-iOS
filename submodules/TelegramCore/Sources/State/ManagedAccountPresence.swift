@@ -22,7 +22,12 @@ private final class AccountPresenceManagerImpl {
         self.queue = queue
         self.network = network
         
-        self.shouldKeepOnlinePresenceDisposable = (shouldKeepOnlinePresence
+        // SHILLGRAM: ghost: while "don't show online" is on the account always reports offline; turning it on
+        // while online sends "offline" once (the value changes), turning it off sends "online" again.
+        self.shouldKeepOnlinePresenceDisposable = (combineLatest(shouldKeepOnlinePresence, ShillGhost.updates)
+        |> map { value, _ -> Bool in
+            return value && !ShillGhost.noOnline
+        }
         |> distinctUntilChanged
         |> deliverOn(self.queue)).start(next: { [weak self] value in
             guard let `self` = self else {
@@ -43,6 +48,8 @@ private final class AccountPresenceManagerImpl {
     }
     
     private func updatePresence(_ isOnline: Bool) {
+        // SHILLGRAM: ghost: the 30-second "online" refresh never goes out while "don't show online" is on.
+        let isOnline = isOnline && !ShillGhost.noOnline
         let request: Signal<Api.Bool, MTRpcError>
         if isOnline {
             let timer = SignalKitTimer(timeout: 30.0, repeat: false, completion: { [weak self] in

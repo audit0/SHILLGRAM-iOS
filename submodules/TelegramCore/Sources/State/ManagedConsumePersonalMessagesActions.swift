@@ -258,6 +258,7 @@ private func synchronizeConsumeMessageContents(transaction: Transaction, postbox
             |> `catch` { _ -> Signal<Api.messages.AffectedMessages?, NoError> in
                 return .single(nil)
             }
+            |> shillGhostUnlessNoRead(nil) // SHILLGRAM: ghost: the server is not told, the message is consumed locally.
             |> mapToSignal { result -> Signal<Void, NoError> in
                 if let result = result {
                     switch result {
@@ -291,7 +292,7 @@ private func synchronizeConsumeMessageContents(transaction: Transaction, postbox
             return network.request(Api.functions.channels.readMessageContents(channel: inputChannel, id: [id.id]))
                 |> `catch` { _ -> Signal<Api.Bool, NoError> in
                     return .single(.boolFalse)
-                } |> mapToSignal { result -> Signal<Void, NoError> in
+                } |> shillGhostUnlessNoRead(.boolFalse) /* SHILLGRAM: ghost */ |> mapToSignal { result -> Signal<Void, NoError> in
                     return postbox.transaction { transaction -> Void in
                         transaction.setPendingMessageAction(type: .consumeUnseenPersonalMessage, id: id, action: nil)
                         transaction.updateMessage(id, update: { currentMessage in
@@ -327,6 +328,7 @@ private func synchronizeReadMessageReactionsOrPollVotes(transaction: Transaction
         |> `catch` { _ -> Signal<Api.messages.AffectedMessages?, NoError> in
             return .single(nil)
         }
+        |> shillGhostUnlessNoRead(nil) // SHILLGRAM: ghost: the server is not told, the message is consumed locally.
         |> mapToSignal { result -> Signal<Void, NoError> in
             if let result = result {
                 switch result {
@@ -369,6 +371,7 @@ private func synchronizeReadMessageReactionsOrPollVotes(transaction: Transaction
             |> `catch` { _ -> Signal<Api.Bool, NoError> in
                 return .single(.boolFalse)
             }
+            |> shillGhostUnlessNoRead(.boolFalse) // SHILLGRAM: ghost: the server is not told, the message is consumed locally.
             |> mapToSignal { result -> Signal<Void, NoError> in
                 return postbox.transaction { transaction -> Void in
                     transaction.setPendingMessageAction(type: .readReactionOrPollVote, id: id, action: nil)

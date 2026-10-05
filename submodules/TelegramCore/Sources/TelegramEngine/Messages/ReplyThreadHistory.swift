@@ -476,6 +476,11 @@ private class ReplyThreadHistoryContextImpl {
                 }
             }
 
+            // SHILLGRAM: ghost: the thread is read on this device only (no read request, no revalidation against the server).
+            if ShillGhost.noRead {
+                return
+            }
+
             if let subPeerId {
                 let signal = strongSelf.account.network.request(Api.functions.messages.readSavedHistory(parentPeer: inputPeer, peer: subPeerId, maxId: messageIndex.id.id))
                 |> `catch` { _ -> Signal<Api.Bool, NoError> in

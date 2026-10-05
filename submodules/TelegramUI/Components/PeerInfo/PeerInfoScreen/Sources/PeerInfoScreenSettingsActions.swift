@@ -297,6 +297,8 @@ extension PeerInfoScreenNode {
             }
         case .shillVpn:
             ShillVpnTelegram.present(mode: .settings, sharedContext: self.context.sharedContext, context: self.context)
+        case .shillGhost: // SHILLGRAM: ghost
+            push(shillGhostSettingsController(context: self.context))
         }
     }
 

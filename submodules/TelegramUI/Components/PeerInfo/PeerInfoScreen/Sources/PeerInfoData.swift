@@ -981,7 +981,8 @@ func peerInfoScreenSettingsData(context: AccountContext, peerId: EnginePeer.Id, 
         preferences,
         combineLatest(notificationExceptions, notificationsAuthorizationStatus.get(), notificationsWarningSuppressed.get()),
         combineLatest(context.account.viewTracker.featuredStickerPacks(), archivedStickerPacks),
-        hasPassport,
+        // SHILLGRAM: ghost: a change of ghost mode rebuilds Settings (its row shows on/off).
+        combineLatest(hasPassport, ShillGhost.updates) |> map { hasPassport, _ -> Bool in return hasPassport },
         context.engine.data.subscribe(TelegramEngine.EngineData.Item.Configuration.ApplicationSpecificPreference(key: PreferencesKeys.appConfiguration)),
         context.engine.notices.getServerProvidedSuggestions(),
         context.engine.data.get(

@@ -2,7 +2,7 @@
 # Repackage the Bazel-built Telegram.ipa as SHILLGRAM-<version>-iOS.ipa with Payload/SHILLGRAM.app.
 set -euo pipefail
 REPO=/Volumes/TBuild/ios/Telegram-iOS
-OUT=/Volumes/TBuild/ios/out
+OUT="${OUT:-/Volumes/TBuild/ios/out}" # SHILLGRAM: OUT=... to package elsewhere
 SRC_IPA="$REPO/bazel-bin/Telegram/Telegram.ipa"
 [ -f "$SRC_IPA" ] || { echo "no $SRC_IPA"; exit 1; }
 WORK=$(mktemp -d /Volumes/TBuild/ios/pkg.XXXXXX)

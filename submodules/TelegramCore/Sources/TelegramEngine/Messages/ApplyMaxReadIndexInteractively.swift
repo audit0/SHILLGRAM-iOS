@@ -178,7 +178,9 @@ func _internal_toggleForumThreadUnreadMarkInteractively(transaction: Transaction
                 transaction.setMessageHistoryThreadInfo(peerId: peerId, threadId: threadId, info: entry)
             }
             
-            if peer.isForum {
+            if ShillGhost.noRead {
+                // SHILLGRAM: ghost: the thread is read on this device only.
+            } else if peer.isForum {
                 if let inputPeer = apiInputPeer(peer) {
                     let _ = network.request(Api.functions.messages.readDiscussion(peer: inputPeer, msgId: Int32(clamping: threadId), readMaxId: messageIndex.id.id)).start()
                 }
@@ -214,7 +216,9 @@ func _internal_markForumThreadAsReadInteractively(transaction: Transaction, netw
             transaction.setMessageHistoryThreadInfo(peerId: peerId, threadId: threadId, info: entry)
         }
         
-        if peer.isForum {
+        if ShillGhost.noRead {
+            // SHILLGRAM: ghost: the thread is read on this device only.
+        } else if peer.isForum {
             if let inputPeer = apiInputPeer(peer) {
                 let _ = network.request(Api.functions.messages.readDiscussion(peer: inputPeer, msgId: Int32(clamping: threadId), readMaxId: messageIndex.id.id)).start()
             }
@@ -256,7 +260,9 @@ func _internal_togglePeerUnreadMarkInteractively(transaction: Transaction, netwo
                     transaction.setMessageHistoryThreadInfo(peerId: peerId, threadId: item.threadId, info: entry)
                 }
                 
-                if peer.isForum {
+                if ShillGhost.noRead {
+                    // SHILLGRAM: ghost: the thread is read on this device only.
+                } else if peer.isForum {
                     if let inputPeer = apiInputPeer(peer) {
                         let _ = network.request(Api.functions.messages.readDiscussion(peer: inputPeer, msgId: Int32(clamping: item.threadId), readMaxId: messageIndex.id.id)).start()
                     }

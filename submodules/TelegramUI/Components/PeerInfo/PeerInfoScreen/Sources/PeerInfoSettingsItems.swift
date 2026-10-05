@@ -174,6 +174,10 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
     items[.proxy]!.insert(PeerInfoScreenDisclosureItem(id: 1, text: ShillVpn.shared.menuText(), icon: PresentationResourcesSettings.proxy, action: {
         interaction.openSettings(.shillVpn)
     }), at: 0)
+    // SHILLGRAM: ghost: «Режим призрака · Вкл./Выкл.» right after SHILLVPN.
+    items[.proxy]!.insert(PeerInfoScreenDisclosureItem(id: 2, label: .text(ShillGhost.isEnabled ? ShillVpn.tr("On", "Вкл.") : ShillVpn.tr("Off", "Выкл.")), text: ShillVpn.tr("Ghost mode", "Режим призрака"), icon: PresentationResourcesSettings.lockOrange, action: {
+        interaction.openSettings(.shillGhost)
+    }), at: 1)
     
     var appIndex = 1000
     if let settings = data.globalSettings {

@@ -189,6 +189,7 @@ enum PeerInfoSettingsSection {
     case stars
     case ton
     case shillVpn // SHILLGRAM
+    case shillGhost // SHILLGRAM: ghost
 }
 
 enum PeerInfoReportType {
